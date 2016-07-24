@@ -32,20 +32,26 @@ function interpolate(raster, point) {
     return getPixel(raster, col, row);
 }
 
-function warp(raster, inverseProjection, img) {
-    var warped = img;//context.getImageData(0, 0, width, height);
-
-    // for (pixel in boundingObject) {
-    for (var row = 0; row < warped.height; row++) {
-        for (var col = 0; col < warped.width; col++) {
+function warpInImage(raster, inverseProjection, image, boundingObject) {
+    for (var row = 0; row < image.height; row++) {
+        for (var col = 0; col < image.width; col++) {
             projectedPoint = [col+0.5, row+0.5];
             inversePoint = inverseProjection(projectedPoint);
-            // console.log('projected', projectedPoint, 'inverse', inversePoint)
-            setPixel(warped, col, row, interpolate(raster, inversePoint));
+            setPixel(image, col, row, interpolate(raster, inversePoint));
         }
     }
-    // return warped;
-    //context.putImageData(warped, 0, 0);
+    return image;
 }
 
+function warp(raster, inverseProjection, context, boundingObject) {
+    var image = context.getImageData(
+        0,
+        0,
+        context.canvas.width,
+        context.canvas.height);
+
+    return warpInImage(raster, inverseProjection, image, boundingObject);
+}
+
+exports.warpInImage = warpInImage;
 exports.warp = warp;
