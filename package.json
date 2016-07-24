@@ -7,5 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Rasmus Einarsson",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "d3-geo": "file:d3-geo"
+  }
 }
