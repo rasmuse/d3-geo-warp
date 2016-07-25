@@ -24,6 +24,10 @@ function getPixel(raster, col, row) {
     return raster.data.slice(ix0, ix0 + NUM_COMPONENTS);
 }
 
+function isAlphaZero(raster, col, row) {
+    return (raster.data[linearCoords(raster, col, row) + 3] == 0);
+}
+
 function interpolate(raster, point) {
     var x = point[0];
     var y = point[1];
@@ -32,9 +36,13 @@ function interpolate(raster, point) {
     return getPixel(raster, col, row);
 }
 
-function warpInImage(raster, inverseProjection, image, boundingObject) {
+function warpInImage(raster, inverseProjection, image, maskFunction) {
     for (var row = 0; row < image.height; row++) {
         for (var col = 0; col < image.width; col++) {
+            if (maskFunction(col, row)) {
+                continue;
+            }
+
             projectedPoint = [col+0.5, row+0.5];
             inversePoint = inverseProjection(projectedPoint);
             setPixel(image, col, row, interpolate(raster, inversePoint));
@@ -43,15 +51,16 @@ function warpInImage(raster, inverseProjection, image, boundingObject) {
     return image;
 }
 
-function warp(raster, inverseProjection, context, boundingObject) {
+function warp(raster, inverseProjection, context, maskFunction) {
     var image = context.getImageData(
         0,
         0,
         context.canvas.width,
         context.canvas.height);
 
-    return warpInImage(raster, inverseProjection, image, boundingObject);
+    return warpInImage(raster, inverseProjection, image, maskFunction);
 }
 
+exports.isAlphaZero = isAlphaZero;
 exports.warpInImage = warpInImage;
 exports.warp = warp;
