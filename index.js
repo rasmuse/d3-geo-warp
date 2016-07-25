@@ -9,7 +9,7 @@ var warp = require('./warp');
 
 var d3 = require('d3-geo')
 
-var world = d3.geoGraticule().outline();
+var world = {type: "Sphere"};
 
 var fs = require('fs');
 fs.readFile(__dirname + '/world.topo.bathy.200411.3x5400x2700.jpg', function(err, data){
@@ -24,8 +24,9 @@ fs.readFile(__dirname + '/world.topo.bathy.200411.3x5400x2700.jpg', function(err
         .fitSize([img.width, img.height], world);
 
     // var dstProj = d3.geoAzimuthalEqualArea()
-    // var dstProj = d3.geoConicEqualArea()
-    var dstProj = d3.geoOrthographic().clipAngle(90).rotate([180])
+    // var dstProj = d3.geoAzimuthalEquidistant().rotate([0,90])
+    var dstProj = d3.geoConicEqualArea().rotate([120, 90, 50])
+    // var dstProj = d3.geoOrthographic().rotate([180, 90])
     // var dstProj = d3.geoEquirectangular()
         .fitSize([width, height], world);
 
@@ -38,15 +39,13 @@ fs.readFile(__dirname + '/world.topo.bathy.200411.3x5400x2700.jpg', function(err
     maskContext.beginPath()
     maskContext.fillStyle = '#fff'
     d3.geoPath().projection(dstProj).context(maskContext)(world);
-    maskContext.fill()
     maskContext.closePath();
+    maskContext.fill()
 
     var maskData = maskContext.getImageData(0, 0, width, height);
 
     var mf = function (x, y) {
-        // return maskContext.isPointInPath(x, y);
         return warp.isAlphaZero(maskData, x, y);
-        // return false;
     }
 
     var warped = warp.warp(orig, inverseProjection, context, mf);
