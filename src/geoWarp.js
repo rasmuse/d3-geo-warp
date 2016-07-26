@@ -1,7 +1,7 @@
+import {geoPath} from "d3-geo";
+
 var NUM_COMPONENTS = 4; // RGBA
 var SPHERE = {type: "Sphere"};
-
-var d3 = require('d3-geo')
 
 function linearCoords(img, col, row) {
     return (row * img.width + col) * NUM_COMPONENTS;
@@ -96,7 +96,7 @@ export default function() {
 
         context.beginPath();
         context.fillStyle = '#öfff';
-        d3.geoPath().projection(dstProj).context(context)(maskObject);
+        geoPath().projection(dstProj).context(context)(maskObject);
         context.closePath();
         context.fill();
 

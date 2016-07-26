@@ -15,7 +15,7 @@
     "url": "https://github.com/rasmuse/d3-geo-warp.git"
   },
   "scripts": {
-    "pretest": "rm -rf build && mkdir build && rollup -f umd -n d3 -o build/d3-geo-warp.js -- index.js",
+    "pretest": "rm -rf build && mkdir build && rollup -g d3-geo:d3 -f umd -n d3 -o build/d3-geo-warp.js -- index.js",
     "test": "tape 'test/**/*-test.js'",
     "prepublish": "npm run test && uglifyjs build/d3-geo-warp.js -c -m -o build/d3-geo-warp.min.js",
     "postpublish": "zip -j build/d3-geo-warp.zip -- LICENSE README.md build/d3-geo-warp.js build/d3-geo-warp.min.js"

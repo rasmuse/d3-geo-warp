@@ -1,5 +1,6 @@
 var tape = require("tape"),
-    d3Warp = require("../");
+    d3_geo = require('d3-geo'),
+    d3_warp = require("../");
 
 tape("Warp something", function(test) {
     var Canvas = require('canvas');
@@ -10,9 +11,6 @@ tape("Warp something", function(test) {
     var canvas = new Canvas(width, height);
     var context = canvas.getContext('2d');
 
-    // var d3Warp = require('./warp');
-
-    var d3 = require('d3-geo')
 
     var world = {type: "Sphere"};
 
@@ -25,24 +23,22 @@ tape("Warp something", function(test) {
         tempContext.drawImage(img, 0, 0, img.width, img.height);
         //var orig = tempContext.getImageData(0, 0, img.width, img.height)
 
-        var srcProj = d3.geoEquirectangular()
+        var srcProj = d3_geo.geoEquirectangular()
             .fitSize([img.width, img.height], world);
 
-        var dstProj = d3.geoAzimuthalEqualArea()
+        var dstProj = d3_geo.geoAzimuthalEqualArea()
         // var dstProj = d3.geoAzimuthalEquidistant().rotate([0,90])
         // var dstProj = d3.geoConicEqualArea().rotate([120, 90, 50])
         // var dstProj = d3.geoOrthographic().rotate([180, 90])
         // var dstProj = d3.geoEquirectangular()
             .fitSize([width, height], world);
 
-        var warp = d3Warp.geoWarp();
+        var warp = d3_warp.geoWarp();
 
         warp.dstProj(dstProj).srcProj(srcProj).dstContext(context);
 
         warp(tempContext);
 
-        // warp.warp(orig, inverseProjection, context, mf);
-        // // context.putImageData(warped, 0, 0);
         fs.writeFile('test.png', canvas.toBuffer());
     });
     
