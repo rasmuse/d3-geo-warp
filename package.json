@@ -2,16 +2,31 @@
   "name": "d3-geo-warp",
   "version": "0.0.0",
   "description": "Raster reprojection for d3",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "keywords": [
+    "d3",
+    "d3-module"
+  ],
+  "license": "BSD-3-Clause",
+  "main": "build/d3-geo-warp.js",
+  "jsnext:main": "index",
+  "homepage": "https://github.com/rasmuse/d3-geo-warp",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rasmuse/d3-geo-warp.git"
   },
-  "author": "Rasmus Einarsson",
-  "license": "MIT",
+  "scripts": {
+    "pretest": "rm -rf build && mkdir build && rollup -f umd -n d3 -o build/d3-geo-warp.js -- index.js",
+    "test": "tape 'test/**/*-test.js'",
+    "prepublish": "npm run test && uglifyjs build/d3-geo-warp.js -c -m -o build/d3-geo-warp.min.js",
+    "postpublish": "zip -j build/d3-geo-warp.zip -- LICENSE README.md build/d3-geo-warp.js build/d3-geo-warp.min.js"
+  },
   "dependencies": {
     "d3-geo": "file:d3-geo"
   },
   "devDependencies": {
+    "rollup": "0.27",
+    "tape": "4",
+    "uglify-js": "2",
     "canvas": "^1.4.0"
   }
 }

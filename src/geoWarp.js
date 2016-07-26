@@ -40,9 +40,10 @@ function interpolate(imageData, point) {
 
 var Canvas = require('canvas');
 
-module.exports = function () {
+export default function() {
     var srcProj, dstProj,
-        dstContext, dstCanvas;
+        dstContext, dstCanvas,
+        maskObject;
 
     function warp(srcContext) {
         var maskData = makeMask(),
@@ -59,8 +60,8 @@ module.exports = function () {
             for (var col = 0; col < image.width; col++) {
                 if (isAlphaZero(maskData, col, row)) continue;
 
-                projectedPoint = [col+0.5, row+0.5];
-                inversePoint = inverseProjection(projectedPoint);
+                var projectedPoint = [col+0.5, row+0.5],
+                    inversePoint = inverseProjection(projectedPoint);
                 setPixel(image, col, row, interpolate(srcImage, inversePoint));
             }
         }

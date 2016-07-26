@@ -1,0 +1,17 @@
+{
+  "name": "d3-geo-warp",
+  "version": "0.0.0",
+  "description": "Raster reprojection for d3",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Rasmus Einarsson",
+  "license": "MIT",
+  "dependencies": {
+    "d3-geo": "file:d3-geo"
+  },
+  "devDependencies": {
+    "canvas": "^1.4.0"
+  }
+}
