@@ -21,12 +21,12 @@
     "postpublish": "zip -j build/d3-geo-warp.zip -- LICENSE README.md build/d3-geo-warp.js build/d3-geo-warp.min.js"
   },
   "dependencies": {
-    "d3-geo": "file:d3-geo"
+    "d3-geo": "^1.2.2"
   },
   "devDependencies": {
-    "rollup": "0.27",
-    "tape": "4",
-    "uglify-js": "2",
+    "rollup": "^0.34",
+    "tape": "^4",
+    "uglify-js": "^2",
     "canvas": "^1.4.0"
   }
 }
