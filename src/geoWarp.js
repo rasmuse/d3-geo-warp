@@ -43,32 +43,39 @@ export default function() {
         dstContext, dstCanvas,
         maskObject;
 
-    function createCanvas() {
-        return document.createElement('canvas');
+    function createCanvas(width, height) {
+        var canvas = document.createElement('canvas');
+        if (typeof width !== 'undefined') canvas.width = width;
+        if (typeof height !== 'undefined') canvas.height = height;
+        return canvas;
     }
 
-    function warp(srcContext) {
-        var maskData = makeMask(),
-            srcImage = srcContext.getImageData(
-                0, 0, srcContext.canvas.width, srcContext.canvas.height);
+    function warp(srcImage) {
+        var srcCanvas = createCanvas(srcImage.width, srcImage.height),
+            srcContext = srcCanvas.getContext('2d'),
+            maskData = makeMask();
+
+        srcContext.drawImage(srcImage, 0, 0);
+        srcImage = srcContext.getImageData(
+            0, 0, srcCanvas.width, srcCanvas.height);
 
         var inverseProjection = function (point) {
             return srcProj(dstProj.invert(point));
         }
 
-        var image = dstContext.getImageData(0, 0, dstCanvas.width, dstCanvas.height);
+        var dstImage = dstContext.getImageData(0, 0, dstCanvas.width, dstCanvas.height);
 
-        for (var row = 0; row < image.height; row++) {
-            for (var col = 0; col < image.width; col++) {
+        for (var row = 0; row < dstImage.height; row++) {
+            for (var col = 0; col < dstImage.width; col++) {
                 if (isAlphaZero(maskData, col, row)) continue;
 
                 var projectedPoint = [col+0.5, row+0.5],
                     inversePoint = inverseProjection(projectedPoint);
-                setPixel(image, col, row, interpolate(srcImage, inversePoint));
+                setPixel(dstImage, col, row, interpolate(srcImage, inversePoint));
             }
         }
 
-        dstContext.putImageData(image, 0, 0);
+        dstContext.putImageData(dstImage, 0, 0);
     }
 
     warp.dstProj = function(_) {

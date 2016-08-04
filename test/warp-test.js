@@ -19,10 +19,9 @@ tape("Warp something", function(test) {
 
     fs.readFile(infile, function(err, data){
         if (err) throw err;
+
         var img = new Canvas.Image();
         img.src = data;
-        var tempContext = new Canvas(img.width, img.height).getContext('2d');
-        tempContext.drawImage(img, 0, 0, img.width, img.height);
 
         var srcProj = d3_geo.geoEquirectangular()
             .fitSize([img.width, img.height], world);
@@ -30,11 +29,11 @@ tape("Warp something", function(test) {
         var dstProj = d3_geo.geoConicEqualArea().rotate([120, 90, 50])
             .fitSize([width, height], world);
 
-        var warp = d3_warp.geoWarp().createCanvas(function() {return new Canvas();});
+        var warp = d3_warp.geoWarp().createCanvas(function(width, height) { return new Canvas(width, height); });
 
         warp.dstProj(dstProj).srcProj(srcProj).dstContext(context);
 
-        warp(tempContext);
+        warp(img);
 
         var result = canvas.toBuffer().toString('binary');
 
