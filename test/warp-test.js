@@ -33,7 +33,7 @@ tape("Warp something", function(test) {
         // var dstProj = d3.geoEquirectangular()
             .fitSize([width, height], world);
 
-        var warp = d3_warp.geoWarp();
+        var warp = d3_warp.geoWarp().createCanvas(function() {return new Canvas();});
 
         warp.dstProj(dstProj).srcProj(srcProj).dstContext(context);
 

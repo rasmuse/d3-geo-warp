@@ -38,12 +38,14 @@ function interpolate(imageData, point) {
     return getPixel(imageData, col, row);
 }
 
-var Canvas = require('canvas');
-
 export default function() {
     var srcProj, dstProj,
         dstContext, dstCanvas,
         maskObject;
+
+    function createCanvas() {
+        return document.createElement('canvas');
+    }
 
     function warp(srcContext) {
         var maskData = makeMask(),
@@ -91,11 +93,14 @@ export default function() {
     function makeMask() {
         var width = dstCanvas.width,
             height = dstCanvas.height,
-            maskCanvas = new Canvas(width, height),
+            maskCanvas = createCanvas(),
             context = maskCanvas.getContext('2d');
 
+        maskCanvas.width = width;
+        maskCanvas.height = height;
+
         context.beginPath();
-        context.fillStyle = '#öfff';
+        context.fillStyle = '#fff';
         geoPath().projection(dstProj).context(context)(maskObject);
         context.closePath();
         context.fill();
@@ -106,6 +111,12 @@ export default function() {
     warp.maskObject = function (_) {
         if (!arguments.length) return maskObject;
         maskObject = _;
+        return warp;
+    }
+
+    warp.createCanvas = function (_) {
+        if (!arguments.length) return createCanvas;
+        createCanvas = _;
         return warp;
     }
 
