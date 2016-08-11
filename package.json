@@ -1,6 +1,6 @@
 {
   "name": "d3-geo-warp",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Raster reprojection for d3",
   "keywords": [
     "d3",
