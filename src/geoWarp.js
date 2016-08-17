@@ -60,21 +60,32 @@ export default function() {
 
   function warpChunk(x0, y0, x1, y1) {
     var isVisible = makeMask(x0, y0, x1, y1);
-    var dstPoint, srcPoint, value;
+    var dstChunk, value;
+
+    var dstPoints = [],
+        srcPoints = [];
 
     for (var x = x0; x < x1; x++) {
       for (var y = y0; y < y1; y++) {
         if (isVisible(x, y)) {
           // Invert middle of pixel coordinate
-          dstPoint = [x + 0.5, y + 0.5];
-          srcPoint = srcProj(dstProj.invert(dstPoint));
-          dst.bands.forEach(function(band, i) {
-            value = interpolate(src.bands.get(i), srcPoint)
-            band.pixels.set(dstPoint[0], dstPoint[1], value);
-          });
+          dstPoints.push([x + 0.5, y + 0.5]);
         }
       }
     }
+
+    srcPoints = dstPoints.map(function(dstPoint) {
+      return srcProj(dstProj.invert(dstPoint));
+    });
+
+    dst.bands.forEach(function(band, i) {
+      dstChunk = band.pixels.read(x0, y0, x1 - x0, y1 - y0);
+      dstPoints.map(function (v) { return v.map(Math.floor)}).forEach(function(dstPoint, j) {
+        value = interpolate(src.bands.get(i), srcPoints[j]);
+        dstChunk[dstPoint[1] * (x1 - x0) + dstPoint[0]] = value;
+      });
+      band.pixels.write(x0, y0, x1 - x0, y1 - y0, dstChunk);
+    });
   }
 
   function warp(bbox) {
