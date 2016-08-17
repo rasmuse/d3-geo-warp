@@ -149,4 +149,6 @@ tape("Warp should not request data out of range", function(test) {
     dst.close();
 
     temp.cleanupSync();
+
+    test.end()
 });

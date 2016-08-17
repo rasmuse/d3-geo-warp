@@ -108,8 +108,8 @@ export default function() {
         warpChunk(
           x,
           y,
-          x + Math.min(bbox.x1, x + chunkSize[0]),
-          y + Math.min(bbox.y1, y + chunkSize[1]));
+          Math.min(bbox.x1, x + chunkSize[0]),
+          Math.min(bbox.y1, y + chunkSize[1]));
       }
     }
   }
