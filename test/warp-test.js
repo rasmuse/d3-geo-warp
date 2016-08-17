@@ -119,36 +119,30 @@ tape("Warp should not request data out of range", function(test) {
 
     var infile = __dirname + '/data/natearth.tif';
 
-    testOutpath = path.join(temp.mkdirSync(), 'test.tif');
-    
-    var width = 999,
-        height = 999;
+    var width = 5,
+        height = 5;
 
     var src = gdal.open(infile);
-    var dst = gdal.open(testOutpath, 'w', ['GTiff'], width, height,
+    var dst = gdal.open('MEM', 'w', ['MEM'], width, height,
         src.bands.count(), gdal.GDT_Byte);
 
     var world = {type: 'Sphere'};
     var srcProj = d3_geo.geoEquirectangular()
         .fitSize([src.rasterSize.x, src.rasterSize.y], world);
 
-    var dstProj = d3_geo.geoConicEqualArea().fitSize([width, height], world);
+    var dstProj = d3_geo.geoConicEqualArea();
 
     var warp = geoWarp()
         .src(src)
         .dst(dst)
         .srcProj(srcProj)
         .dstProj(dstProj)
-        .chunkSize([512, 512])
+        .chunkSize([4, 4])
         .createCanvas(function(width, height) {
             return new Canvas(width, height); 
         });
 
     warp();
-
-    dst.close();
-
-    temp.cleanupSync();
 
     test.end()
 });
