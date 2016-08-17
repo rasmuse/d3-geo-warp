@@ -1,1 +1,1 @@
-export {default as geoWarp} from "./src/geoWarp";
+export {default} from "./src/geoWarp";
