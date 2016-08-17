@@ -52,6 +52,30 @@ const tape = require("tape"),
 //     test.end();
 // });
 
+function equalRasterContents(path1, path2) {
+    var ds1 = gdal.open(path1);
+    var ds2 = gdal.open(path2);
+
+    if (ds1.rasterSize.x !== ds2.rasterSize.x
+        || ds1.rasterSize.y !== ds2.rasterSize.y) {
+        console.log('Raster sizes mismatch', ds1.rasterSize, ds2.rasterSize);
+    }
+
+    ds1.bands.forEach(function(band, i) {
+        for (var y = 0; y < ds1.rasterSize.y; y++) {
+            data1 = band.pixels.read(0, y, ds1.rasterSize.x, 1);
+            data2 = ds2.bands.get(i).pixels.read(0, y, ds1.rasterSize.x, 1);
+            data1.forEach(function(value, idx) {
+                if (data2[idx] !== value) {
+                    console.log(i, idx, y, value, data2[idx]);
+                    return false;
+                }
+            });
+        }
+    });
+    return true;
+}
+
 tape("Warp with GDAL", function(test) {
     var infile = __dirname + '/data/natearth.tif',
         expectedOutpath = __dirname + '/data/natearth-warped.tif';
@@ -85,9 +109,7 @@ tape("Warp with GDAL", function(test) {
 
     dst.close();
 
-    var result = fs.readFileSync(testOutpath).toString('binary');
-    var expectedResult = fs.readFileSync(expectedOutpath).toString('binary');
-    test.equal(result, expectedResult);
+    test.equal(true, equalRasterContents(testOutpath, expectedOutpath));
 
     test.end();
 });
