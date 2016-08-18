@@ -12,11 +12,7 @@ function rasterBand(band) {
   self.size = band.size;
 
   function getBlock(x, y) {
-    return {
-        x: x,
-        y: y,
-        data: band.pixels.readBlock(x, y)
-      };
+    return band.pixels.readBlock(x, y);
   }
 
   function getBlockCoords(x, y) {
@@ -40,39 +36,45 @@ function rasterBand(band) {
 
   function get(x, y) {
     var bc = getBlockCoords(x, y);
-    var block = getBlock(bc.x, bc.y);
-    return block.data[bc.i];
+    var data = getBlock(bc.x, bc.y);
+    return data[bc.i];
   }
 
   function getList(points) {
 
-    var srcBlocks = new Map();
-    var values = new Array(points.length);
-    points.forEach(function(point, idx) {
-      var blockCoords = getBlockCoords(point[0], point[1]);
-      var id = JSON.stringify([blockCoords.x, blockCoords.y]);
-      if (!srcBlocks.has(id)) {
-        srcBlocks.set(id, {
-          x: blockCoords.x,
-          y: blockCoords.y,
-          order: [],
-          blockIndices: []
-        });
-      }
-      var srcBlock = srcBlocks.get(id);
-      srcBlock.order.push(idx);
-      srcBlock.blockIndices.push(blockCoords.i);
+    var blockCoords = points.map(function(point, i) {
+      var X = Math.floor(point[0] / blockSize.x);
+      var Y = Math.floor(point[1] / blockSize.y);
+      var x0 = X * blockSize.x;
+      var y0 = Y * blockSize.y;
+
+      return [
+        X,
+        Y,
+        (point[1] - y0) * blockSize.x + (point[0] - x0),
+        i
+      ];
     });
 
-    srcBlocks.forEach(function(srcBlock) {
-      var block = getBlock(srcBlock.x, srcBlock.y);
-      var data = block.data;
-      var blockIndices = srcBlock.blockIndices;
-      var order = srcBlock.order;
-      for (var i = blockIndices.length - 1; i >= 0; i--) {
-        values[order[i]] = data[blockIndices[i]];
-      }
+    blockCoords.sort(function(bc1, bc2) {
+      return 2 * Math.sign(bc1[0] - bc2[0]) + Math.sign(bc1[1] - bc2[1]);
     });
+
+    var X, Y, data, bc, lastX, lastY;
+
+    var values = new Array(points.length);
+
+    for (var i = 0; i < blockCoords.length; i++) {
+      bc = blockCoords[i];
+      X = bc[0];
+      Y = bc[1];
+      if (X !== lastX || Y !== lastY) {
+        data = getBlock(X, Y);
+      }
+      values[bc[3]] = data[bc[2]];
+      lastX = X;
+      lastY = Y;
+    }
 
     return values;
   }
