@@ -67,7 +67,6 @@ function equalRasterContents(path1, path2) {
             data2 = ds2.bands.get(i).pixels.read(0, y, ds1.rasterSize.x, 1);
             data1.forEach(function(value, idx) {
                 if (data2[idx] !== value) {
-                    console.log(i, idx, y, value, data2[idx]);
                     return false;
                 }
             });
