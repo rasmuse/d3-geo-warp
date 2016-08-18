@@ -60,7 +60,7 @@ export default function() {
 
   function warpChunk(x0, y0, x1, y1) {
     var isVisible = makeMask(x0, y0, x1, y1);
-    var dstChunk, value;
+    var dstChunk;
 
     var dstPoints = [],
         srcPoints = [];
@@ -80,9 +80,12 @@ export default function() {
 
     dst.bands.forEach(function(band, i) {
       dstChunk = band.pixels.read(x0, y0, x1 - x0, y1 - y0);
-      dstPoints.map(function (v) { return v.map(Math.floor)}).forEach(function(dstPoint, j) {
-        value = interpolate(src.bands.get(i), srcPoints[j]);
-        dstChunk[dstPoint[1] * (x1 - x0) + dstPoint[0]] = value;
+      dstPoints.forEach(function(dstPoint, j) {
+          var value = interpolate(src.bands.get(i), srcPoints[j]);
+          var idx = (
+            Math.floor(dstPoint[1] - y0) * (x1 - x0)
+            + Math.floor(dstPoint[0]) - x0);
+          dstChunk[idx] = value;
       });
       band.pixels.write(x0, y0, x1 - x0, y1 - y0, dstChunk);
     });
