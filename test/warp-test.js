@@ -61,17 +61,20 @@ function equalRasterContents(path1, path2) {
         console.log('Raster sizes mismatch', ds1.rasterSize, ds2.rasterSize);
     }
 
-    ds1.bands.forEach(function(band, i) {
-        for (var y = 0; y < ds1.rasterSize.y; y++) {
-            data1 = band.pixels.read(0, y, ds1.rasterSize.x, 1);
-            data2 = ds2.bands.get(i).pixels.read(0, y, ds1.rasterSize.x, 1);
-            data1.forEach(function(value, idx) {
-                if (data2[idx] !== value) {
-                    return false;
-                }
+    for (var i = 1; i <= ds1.bands.count(); i++) {
+        for (var y = ds1.rasterSize.y - 1; y >= 0; y--) {
+            var data1 = ds1.bands.get(i).pixels.read(0, y, ds1.rasterSize.x, 1);
+            var data2 = ds2.bands.get(i).pixels.read(0, y, ds1.rasterSize.x, 1);
+            var differenceInThisRow = data1.some(function(value, idx) {
+                return (data2[idx] !== value);
             });
+
+            if (differenceInThisRow) {
+                console.log('ds1 and ds2 differ at y=' + y);
+                return false;
+            }
         }
-    });
+    }
     return true;
 }
 
@@ -79,7 +82,7 @@ tape("Warp with GDAL", function(test) {
     var infile = __dirname + '/data/natearth.tif',
         expectedOutpath = __dirname + '/data/natearth-warped.tif';
 
-    testOutpath = path.join(temp.mkdirSync(), 'test.tif');
+    var testOutpath = path.join(temp.mkdirSync(), 'test.tif');
 
     var width = 400,
         height = 200;
