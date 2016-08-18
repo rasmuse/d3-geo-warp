@@ -6,33 +6,17 @@ function blockSortFunction(block) {
 
 function rasterBand(band) {
   var blockSize = band.blockSize;
-  var blocks = [];
-  var maxElements = 1e6;
-  var maxBlocks = maxElements / (blockSize.x * blockSize.y);
 
   var self = {};
 
   self.size = band.size;
 
   function getBlock(x, y) {
-    var block;
-    blocks.sort(blockSortFunction);
-    block = blocks.find(function(b) {
-      return (b.x == x && b.y == y);
-    });
-    if (typeof(block) === 'undefined') {
-      block = {
+    return {
         x: x,
         y: y,
         data: band.pixels.readBlock(x, y)
       };
-      if (blocks.unshift(block) > maxBlocks) {
-        var throwOut = blocks[blocks.length - 1];
-        blocks.pop();
-      }
-    }
-    block.lastAccess = Date.now();
-    return block;
   }
 
   function getBlockCoords(x, y) {
