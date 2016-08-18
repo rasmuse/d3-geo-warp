@@ -22,7 +22,7 @@ export default function() {
   var srcProj = null,
       dstProj = null,
       maskObject = null,
-      chunkSize = [1000, 1000],
+      chunkSize = [256, 256],
       createCanvas,
       maskCanvas,
       maskContext,
