@@ -11,12 +11,15 @@ function clamp(val, min, max) {
   return Math.max(min, Math.min(val, max));
 }
 
-function interpolate(band, point) {
-  var x = point[0];
-  var y = point[1];
-  var col = clamp(Math.round(x), 0, band.size.x - 1);
-  var row = clamp(Math.round(y), 0, band.size.y - 1);
-  return band.pixels.get(col, row);
+function interpolate(band, points) {
+  points = points.map(function(point) {
+    var x = point[0];
+    var y = point[1];
+    var col = clamp(Math.round(x), 0, band.size.x - 1);
+    var row = clamp(Math.round(y), 0, band.size.y - 1);
+    return [col, row];
+  });
+  return band.pixels.getList(points);
 }
 
 export default function() {
@@ -82,12 +85,13 @@ export default function() {
     dst.bands.forEach(function(band, i) {
       var srcBandReader = gdalBand(src.bands.get(i));
       dstChunk = band.pixels.read(x0, y0, x1 - x0, y1 - y0);
-      dstPoints.forEach(function(dstPoint, j) {
-          var value = interpolate(srcBandReader, srcPoints[j]);
-          var idx = (
-            Math.floor(dstPoint[1] - y0) * (x1 - x0)
-            + Math.floor(dstPoint[0]) - x0);
-          dstChunk[idx] = value;
+      var values = interpolate(srcBandReader, srcPoints);
+      values.forEach(function(value, j) {
+        var dstPoint = dstPoints[j];
+        var idx = (
+          Math.floor(dstPoint[1] - y0) * (x1 - x0)
+          + Math.floor(dstPoint[0]) - x0);
+        dstChunk[idx] = value;
       });
       band.pixels.write(x0, y0, x1 - x0, y1 - y0, dstChunk);
     });

@@ -60,7 +60,40 @@ function rasterBand(band) {
     return block.data[bc.i];
   }
 
-  self.pixels = {get: get};
+  function getList(points) {
+
+    var srcBlocks = new Map();
+    var values = new Array(points.length);
+    points.forEach(function(point, idx) {
+      var blockCoords = getBlockCoords(point[0], point[1]);
+      var id = JSON.stringify([blockCoords.x, blockCoords.y]);
+      if (!srcBlocks.has(id)) {
+        srcBlocks.set(id, {
+          x: blockCoords.x,
+          y: blockCoords.y,
+          order: [],
+          blockIndices: []
+        });
+      }
+      var srcBlock = srcBlocks.get(id);
+      srcBlock.order.push(idx);
+      srcBlock.blockIndices.push(blockCoords.i);
+    });
+
+    srcBlocks.forEach(function(srcBlock) {
+      var block = getBlock(srcBlock.x, srcBlock.y);
+      var data = block.data;
+      var blockIndices = srcBlock.blockIndices;
+      var order = srcBlock.order;
+      for (var i = blockIndices.length - 1; i >= 0; i--) {
+        values[order[i]] = data[blockIndices[i]];
+      }
+    });
+
+    return values;
+  }
+
+  self.pixels = {get: get, getList: getList};
 
   self.getBlockCoords = getBlockCoords;
 
