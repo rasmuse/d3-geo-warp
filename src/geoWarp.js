@@ -1,4 +1,5 @@
 import {geoPath, geoProjection} from "d3-geo";
+import {default as gdalBand} from './gdal';
 
 var NUM_MAS = 4; // RGBA
 var SPHERE = {type: "Sphere"};
@@ -79,9 +80,10 @@ export default function() {
     });
 
     dst.bands.forEach(function(band, i) {
+      var srcBandReader = gdalBand(src.bands.get(i));
       dstChunk = band.pixels.read(x0, y0, x1 - x0, y1 - y0);
       dstPoints.forEach(function(dstPoint, j) {
-          var value = interpolate(src.bands.get(i), srcPoints[j]);
+          var value = interpolate(srcBandReader, srcPoints[j]);
           var idx = (
             Math.floor(dstPoint[1] - y0) * (x1 - x0)
             + Math.floor(dstPoint[0]) - x0);
