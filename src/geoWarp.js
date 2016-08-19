@@ -1,7 +1,7 @@
 import {geoPath, geoProjection} from "d3-geo";
 import {default as gdalBand} from './gdal';
 
-var NUM_MAS = 4; // RGBA
+var NBANDS = 4; // RGBA
 var SPHERE = {type: "Sphere"};
 
 function clamp(val, min, max) {
@@ -11,16 +11,6 @@ function clamp(val, min, max) {
   return Math.max(min, Math.min(val, max));
 }
 
-function interpolate(band, points) {
-  points = points.map(function(point) {
-    var x = point[0];
-    var y = point[1];
-    var col = clamp(Math.round(x), 0, band.size.x - 1);
-    var row = clamp(Math.round(y), 0, band.size.y - 1);
-    return [col, row];
-  });
-  return band.pixels.getList(points);
-}
 
 export default function() {
   var srcProj = null,
@@ -33,15 +23,161 @@ export default function() {
       src,
       dst;
 
-  function makeMask(x0, y0, x1, y1) {
-    var width = x1 - x0;
-    var height = y1 - y0;
+  // Let's work internally with a Canvas/PNG. So support for up to 4 bands.
+  // Fill background with black.
+  // 
+  // If 4 layers in output, assume RGBA
 
+  // Warp a block:
+  // Draw masking object.
+  // List all points inside masking object, dstPoints.
+  // Back-project dstPoints -> srcPoints.
+  // If output has less than 4 bands, now fill canvas with black.
+  // Interpolate:
+  //  * Ask source ds for values as needed (for all bands at once).
+  //  * Create new pixel values (for all bands at once).
+  // Write block to destination dataset.
+
+  // Dataset API:
+  // const NBANDS = 4
+  // size -> [width, height]
+  // bandCount -> integer
+  // blockSize -> [blockWidth, blockHeight]
+  // readBlock(X, Y) -> a blockSize.x * blockSize.y * NBANDS Uint8ClampedArray
+  // writeBlock(X, Y) -> a blockSize.x * blockSize.y * NBANDS Uint8ClampedArray
+  // For both readBlock and writeBlock, the ds should only care about the
+  // bandCount first values of each pixel. So the other values can be anything.
+  
+  // Inside warper?
+  // readList(points) -> a points.length * bandCount Uint8ClampedArray
+  // createMask(x0, y0, w, h) -> w * h * NBANDS Uint8ClampedArray
+
+  function warpBlock(X, Y) {
+    var bs = dst.bands.get(1).blockSize,
+        w = bs.x,
+        h = bs.y,        
+        x0 = X * w,
+        y0 = Y * h;
+
+    var dstImgData = createMask(x0, y0, w, h);
+
+    // First used for destination points, then source points
+    var maxNumPoints = w * h;
+    var points = new Float64Array(2 * maxNumPoints);
+    var dstIndices = new Uint32Array(maxNumPoints);
+    var numPoints = 0;
+    var point;
+    for (var i = 0; i < maxNumPoints; i++) {
+      if (dstImgData[NBANDS * (i + 1) - 1]) { // if alpha component nonzero
+        point = [
+          i % w + x0 + 0.5,
+          Math.floor(i / w) + y0 + 0.5
+        ];
+
+        point = srcProj(dstProj.invert(point));
+
+        points[2 * numPoints] = point[0];
+        points[2 * numPoints + 1] = point[1];
+        dstIndices[numPoints] = i;
+        numPoints++;
+      }
+    }
+    if (numPoints === 0) return;
+    // console.log('numPoints', numPoints)
+
+    dstImgData.fill(0); // fill with transparent black
+
+    points = points.subarray(0, 2 * numPoints);
+    dstIndices = dstIndices.subarray(0, numPoints);
+
+    interpolate(points, dstIndices, dstImgData);
+
+    // temp, GDAL-specific write
+    for (var j = 0; j < dst.bands.count(); j++) {
+      var band = dst.bands.get(j+1);
+      var pixels = band.pixels;
+      var dstChunk = pixels.readBlock(X, Y);
+      for (var i = 0; i < w * h; i++) {
+        dstChunk[i] = dstImgData[NBANDS * i + j];
+      }
+      band.pixels.writeBlock(X, Y, dstChunk);
+    }
+  }
+
+  function interpolate(srcPoints, dstIndices, dstData) {
+    var rasterSize = [src.rasterSize.x, src.rasterSize.y];
+    for (var i = 0; i < srcPoints.length; i++) {
+      // Nearest neighbor interpolation
+      srcPoints[i] = clamp(Math.round(srcPoints[i]), 0, rasterSize[i % 2] - 1);
+    }
+    writeList(src, srcPoints, dstData, dstIndices);
+  }
+
+  // gdal-specific
+  function writeList(src, srcPoints, dstData, dstIndices) {
+    var bs = src.bands.get(1).blockSize,
+        w = bs.x,
+        h = bs.y,
+        bandCount = src.bands.count();
+
+    // console.log('writing list', w, h, bandCount)
+
+    var blockCoords = new Array(dstIndices.length);
+    var x, y, X, Y, dx, dy, srcStartIdx, dstStartIdx, i;
+    for (i = 0; i < blockCoords.length; i++) {
+      x = Math.round(srcPoints[2 * i]);
+      y = Math.round(srcPoints[2 * i + 1]);
+      X = Math.floor(x / w);
+      Y = Math.floor(y / h);
+      dx = x - X * w;
+      dy = y - Y * h;
+      srcStartIdx = (dy * w + dx);
+      dstStartIdx = NBANDS * dstIndices[i];
+      blockCoords[i] = [X, Y, srcStartIdx, dstStartIdx];
+    }
+    
+    blockCoords.sort(function(bc1, bc2) {
+      return 2 * Math.sign(bc1[0] - bc2[0]) + Math.sign(bc1[1] - bc2[1]);
+    });
+
+    var srcData = new Uint8ClampedArray(dstIndices.length * NBANDS);
+
+    var lastX, lastY, bc, j;
+    var srcBandsData = new Array();
+    for (j = 0; j < bandCount; j++) {
+      srcBandsData.push(new Uint8Array(w * h));
+    }
+    for (i = 0; i < blockCoords.length; i++) {
+      bc = blockCoords[i];
+      X = bc[0];
+      Y = bc[1];
+
+      // if (bc[0] < lastX) console.log('bc0 < lastX', bc[0], lastX);
+      // if (bc[1] < lastY && lastX == bc[0]) console.log('bc1 < lastY', bc[1], lastY);
+      if (bc[0] !== lastX || bc[1] !== lastY) {
+        for (j = 0; j < bandCount; j++) {
+          src.bands.get(j+1).pixels.readBlock(bc[0], bc[1], srcBandsData[j]);
+        }
+      }
+
+      srcStartIdx = bc[2];
+      dstStartIdx = bc[3];
+
+      for (j = 0; j < bandCount; j++) {
+        dstData[dstStartIdx + j] = srcBandsData[j][srcStartIdx];
+      }
+
+      lastX = X;
+      lastY = Y;
+    }
+  }
+
+  function createMask(x0, y0, w, h) {
     // Temporarily translate the dstProjection
     var translate0 = dstProj.translate();
     dstProj.translate([translate0[0] - x0, translate0[1] - y0]);
     
-    maskContext.clearRect(0, 0, width, height);
+    maskContext.clearRect(0, 0, w, h);
     maskContext.beginPath();
     geoPath().projection(dstProj).context(maskContext)(maskObject);
     maskContext.closePath();
@@ -49,56 +185,60 @@ export default function() {
     
     dstProj.translate(translate0);
     
-    var m = maskContext.getImageData(0, 0, width, height).data;
+    return maskContext.getImageData(0, 0, w, h).data;
+  }
+  function alphaZero(img, dx, dy) {
 
-    return function(x, y) {
-      // To mask image coords
-      x = x - x0;
-      y = y - y0;
-
-      // Get first component of mask pixel
-      var linearCoords = (y * width + x) * NUM_MAS;
-      return m[linearCoords] != 0;
-    }
+    var linearCoords = (dy * chunkSize.x + dx) * NUM_MAS + 3;
+    return img.data[linearCoords] === 0;
   }
 
-  function warpChunk(x0, y0, x1, y1) {
-    var isVisible = makeMask(x0, y0, x1, y1);
-    var dstChunk;
+  // function warpChunk(x0, y0, x1, y1) {
+  //   var dstImg = maskedImg(x0, y0, x1, y1);
+  //   var dstChunk;
 
-    var dstPoints = [],
-        srcPoints = [];
+  //   var dstPoints = [],
+  //       srcPoints = [];
 
-    for (var x = x0; x < x1; x++) {
-      for (var y = y0; y < y1; y++) {
-        if (isVisible(x, y)) {
-          // Invert middle of pixel coordinate
-          dstPoints.push([x + 0.5, y + 0.5]);
-        }
-      }
-    }
+  //   for (var x = x0; x < x1; x++) {
+  //     for (var y = y0; y < y1; y++) {
+  //       if (!alphaZero(dstImg, x-x0, y-y0)) {
+  //         // Invert middle of pixel coordinate
+  //         dstPoints.push([x + 0.5, y + 0.5]);
+  //       }
+  //     }
+  //   }
 
-    srcPoints = dstPoints.map(function(dstPoint) {
-      return srcProj(dstProj.invert(dstPoint));
-    });
+  //   srcPoints = dstPoints.map(function(dstPoint) {
+  //     return srcProj(dstProj.invert(dstPoint));
+  //   });
 
-    dst.bands.forEach(function(band, i) {
-      var srcBandReader = gdalBand(src.bands.get(i));
-      dstChunk = band.pixels.read(x0, y0, x1 - x0, y1 - y0);
-      var values = interpolate(srcBandReader, srcPoints);
-      values.forEach(function(value, j) {
-        var dstPoint = dstPoints[j];
-        var idx = (
-          Math.floor(dstPoint[1] - y0) * (x1 - x0)
-          + Math.floor(dstPoint[0]) - x0);
-        dstChunk[idx] = value;
-      });
-      band.pixels.write(x0, y0, x1 - x0, y1 - y0, dstChunk);
-    });
-  }
+  //   dst.bands.forEach(function(band, i) {
+  //     var pxnum;
+  //     var srcBandReader = gdalBand(src.bands.get(i));
+  //     dstChunk = band.pixels.read(x0, y0, x1 - x0, y1 - y0);
+  //     var dstImgData = dstImg.data;
+  //     var values = interpolate(srcBandReader, srcPoints);
+  //     values.forEach(function(value, j) {
+  //       if (i == 4) return;
+  //       var dstPoint = dstPoints[j];
+  //       var idx = i - 1 + NUM_MAS * (
+  //         Math.floor(dstPoint[1] - y0) * (x1 - x0)
+  //         + Math.floor(dstPoint[0]) - x0);
+  //       if (dstImgData[idx+NUM_MAS-i] === 0) value = 0;
+  //       dstImgData[idx] = value;
+  //     });
+  //     for (pxnum=0; pxnum < (x1-x0) * (y1-y0); pxnum++) {
+  //       dstChunk[pxnum] = dstImgData[pxnum * NUM_MAS + i - 1];
+  //     }
+  //     band.pixels.write(x0, y0, x1 - x0, y1 - y0, dstChunk);
+  //   });
+  // }
 
   function warp(bbox) {
 
+    var bs = dst.bands.get(1).blockSize;
+    chunkSize = [bs.x, bs.y]
     maskCanvas = createCanvas(chunkSize[0], chunkSize[1]);
     maskContext = maskCanvas.getContext('2d');
     maskContext.fillStyle = '#fff';
@@ -112,13 +252,9 @@ export default function() {
       };
     }
 
-    for (var x = bbox.x0; x < bbox.x1; x += chunkSize[0]) {
-      for (var y = bbox.y0; y < bbox.y1; y += chunkSize[1]) {
-        warpChunk(
-          x,
-          y,
-          Math.min(bbox.x1, x + chunkSize[0]),
-          Math.min(bbox.y1, y + chunkSize[1]));
+    for (var X = 0; X < bbox.x1 / chunkSize[0]; X++) {
+      for (var Y = 0; Y < bbox.y1 / chunkSize[1]; Y++) {
+        warpBlock(X, Y);
       }
     }
   }
